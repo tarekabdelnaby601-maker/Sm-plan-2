@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AI Vision - استوديو الصور</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="material-symbols-outlined">palette</span>
+    <h1>AI Vision</h1>
+  </div>
+  <button class="icon-btn" onclick="toggleGallery()">
+    <span class="material-symbols-outlined">photo_library</span>
+  </button>
+</header>
+
+<main>
+  <!-- قسم التوليد -->
+  <section class="generator-section">
+    <div class="input-card">
+      <label>وصف الصورة (Prompt):</label>
+      <textarea id="promptInput" placeholder="مثال: قطة فضائية تركب لوح تزلج على كوكب المريخ، إضاءة نيون، تفاصيل عالية جداً..."></textarea>
+      
+      <div class="options-grid">
+        <div class="option-group">
+          <label>النمط (Style):</label>
+          <select id="styleSelect">
+            <option value="">طبيعي (بدون نمط محدد)</option>
+            <option value="realistic, highly detailed, 8k">واقعي 📸</option>
+            <option value="anime style, studio ghibli, vibrant">أنمي 🎌</option>
+            <option value="3d render, pixar style, octane render">ثلاثي الأبعاد 🧊</option>
+            <option value="cyberpunk, neon lights, futuristic">سايبربانك 🌆</option>
+            <option value="oil painting, classical art, brush strokes">رسم زيتي 🎨</option>
+            <option value="minimalist, flat design, vector art">مينيمال 📐</option>
+          </select>
+        </div>
+        
+        <div class="option-group">
+          <label>الأبعاد:</label>
+          <select id="sizeSelect">
+            <option value="1024x1024">مربع (1:1)</option>
+            <option value="1024x768">عرضي (4:3)</option>
+            <option value="768x1024">طولي (3:4)</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="advanced-toggle" onclick="toggleAdvanced()">
+        <span class="material-symbols-outlined">tune</span>
+        <span>إعدادات متقدمة</span>
+      </div>
+      
+      <div class="advanced-options" id="advancedOptions">
+        <div class="option-group">
+          <label>الوصف السلبي (Negative Prompt) - ما لا تريدين ظهوره:</label>
+          <input type="text" id="negativePrompt" placeholder="مثال: مشوه، أيدي غريبة، نص، علامة مائية...">
+        </div>
+        <div class="option-group">
+          <label>الرقم العشوائي (Seed) - اتركيه فارغاً للعشوائية:</label>
+          <input type="number" id="seedInput" placeholder="مثال: 12345">
+        </div>
+      </div>
+
+      <button class="generate-btn" id="generateBtn" onclick="generateImage()">
+        <span class="material-symbols-outlined">auto_awesome</span>
+        توليد الصورة
+      </button>
+    </div>
+  </section>
+
+  <!-- قسم عرض النتيجة -->
+  <section class="result-section" id="resultSection" style="display: none;">
+    <div class="image-container" id="imageContainer">
+      <img id="resultImage" src="" alt="Generated Image">
+      <div class="image-actions">
+        <button class="action-btn download" onclick="downloadImage()">
+          <span class="material-symbols-outlined">download</span>
+        </button>
+        <button class="action-btn delete" onclick="deleteCurrentImage()">
+          <span class="material-symbols-outlined">delete</span>
+        </button>
+      </div>
+    </div>
+    <div class="result-info">
+      <p id="resultPrompt"></p>
+    </div>
+  </section>
+
+  <!-- شاشة التحميل -->
+  <section class="loading-section" id="loadingSection" style="display: none;">
+    <div class="spinner"></div>
+    <h2>جاري رسم خيالك...</h2>
+    <p>قد يستغرق هذا بضع ثوانٍ</p>
+  </section>
+
+  <!-- قسم المعرض -->
+  <section class="gallery-section" id="gallerySection" style="display: none;">
+    <div class="gallery-header">
+      <h2>معرض الصور</h2>
+      <button class="icon-btn" onclick="clearGallery()">
+        <span class="material-symbols-outlined">delete_sweep</span>
+      </button>
+    </div>
+    <div class="gallery-grid" id="galleryGrid"></div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
