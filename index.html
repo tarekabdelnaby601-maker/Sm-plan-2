@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>SmPlan — المخطط الذكي</title>
+<meta name="description" content="تطبيق مهام ذكي">
+<meta name="theme-color" content="#8ab4f8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%238ab4f8'/%3E%3Ctext x='50' y='68' font-size='56' font-family='Arial' font-weight='bold' text-anchor='middle' fill='%23090a0f'%3ES%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+</head>
+<body onclick="closeAllDropdowns(event)">
+
+<div class="progress-bar-container"><div class="progress-bar-fill" id="progressBar"></div></div>
+<div class="toast" id="toastMsg">🔥 إنجاز جديد!</div>
+
+<header>
+<div class="header-left-actions">
+<button class="icon-btn" onclick="togglePopupWindow(event)"><span class="material-symbols-outlined" style="color:var(--primary-color)">bolt</span></button>
+<button class="icon-btn" onclick="toggleSearchBox(event)"><span class="material-symbols-outlined">search</span></button>
+<button class="icon-btn" onclick="openSettingsModal()"><span class="material-symbols-outlined">settings</span></button>
+</div>
+
+<div class="header-right-group">
+<div class="xp-badge" onclick="showLevelInfo()"><span class="material-symbols-outlined" style="font-size:14px">star</span><span id="userXP">0 XP</span></div>
+<button class="category-dropdown-btn" onclick="toggleCategoryMenu(event)"><span class="material-symbols-outlined">expand_more</span><span class="task-count-badge" id="categoryCount">0</span><span id="currentCategoryLabel">غير المنجزة</span></button>
+<div class="dropdown-menu" id="categoryMenu" style="right:auto;left:0" onclick="event.stopPropagation()">
+<div id="dynamicCategories"></div>
+<div class="dropdown-item" style="color:var(--primary-color);font-weight:bold" onclick="openNewCategoryDialog()"><span>+ قائمة جديدة</span></div>
+</div>
+</div>
+</header>
+
+<div class="energy-bar">
+<span class="energy-label">مستوى طاقتك:</span>
+<select id="energyFilterSelect" onchange="changeEnergyFilter(this.value)" class="energy-select">
+<option value="all">كل المستويات ⚡</option>
+<option value="high">طاقة عالية 🚀</option>
+<option value="medium">طاقة متوسطة ☕</option>
+<option value="low">طاقة منخفضة 🌙</option>
+</select>
+</div>
+
+<div class="search-box" id="searchBox">
+<input type="text" class="search-input" id="searchInput" placeholder="ابحث عن مهمة..." oninput="debouncedSearch()">
+<button class="icon-btn" onclick="toggleSearchBox(event)"><span class="material-symbols-outlined">close</span></button>
+</div>
+
+<main id="taskListMain"></main>
+
+<div class="popup-window" id="popupWindow" onclick="event.stopPropagation()">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+<span style="font-weight:bold;color:var(--primary-color)">⚡ إضافة سريعة</span>
+<button class="icon-btn" onclick="togglePopupWindow(event)"><span class="material-symbols-outlined">close</span></button>
+</div>
+<input type="text" class="form-input" id="popupTaskInput" placeholder="أضف مهمة عاجلة..." onkeypress="handlePopupTask(event)">
+</div>
+
+<!-- AI Quick Bar -->
+<div class="ai-quick-bar" id="aiQuickBar">
+  <button class="ai-quick-btn" onclick="openAIInput('text')">
+    <span class="material-symbols-outlined">auto_awesome</span>
+    <span>مهمة AI</span>
+  </button>
+  <button class="ai-quick-btn" onclick="openAIInput('voice')">
+    <span class="material-symbols-outlined">mic</span>
+    <span>تسجيل صوتي</span>
+  </button>
+  <button class="ai-quick-btn" onclick="openAIInput('image')">
+    <span class="material-symbols-outlined">image</span>
+    <span>من صورة</span>
+  </button>
+</div>
+
+<div class="bottom-bar">
+<button class="fab-add" onclick="openNewTaskModal()"><span class="material-symbols-outlined" style="font-size:28px">add</span></button>
+<div class="quick-input-wrapper">
+<input type="text" class="quick-input" id="quickTaskInput" placeholder="مهمة سريعة... (Enter)" onkeypress="handleQuickTask(event)">
+<button class="icon-btn" onclick="startSpeech()"><span class="material-symbols-outlined">mic</span></button>
+</div>
+</div>
+
+<!-- New Task Modal -->
+<div class="full-modal" id="newTaskModal">
+<div class="modal-nav">
+<button class="icon-btn" onclick="closeModal('newTaskModal')"><span class="material-symbols-outlined">arrow_forward</span></button>
+<span style="font-weight:800;font-size:1.1rem">مهمة جديدة</span>
+<button class="icon-btn" onclick="saveNewTaskModal()"><span class="material-symbols-outlined" style="color:var(--primary-color)">check</span></button>
+</div>
+<div class="modal-content">
+<div class="form-group">
+<label class="form-label">اسم المهمة:</label>
+<div style="display:flex;align-items:center;gap:8px">
+<input type="text" class="form-input" id="modalTaskTitle" placeholder="ما الذي تريد إنجازه؟">
+<button class="icon-btn" onclick="startSpeechModal()"><span class="material-symbols-outlined">mic</span></button>
+</div>
+</div>
+<div class="form-group"><label class="form-label">التاريخ:</label><input type="date" class="form-input" id="modalTaskDate"></div>
+<div class="form-group"><label class="form-label">الموقع 📍:</label><input type="text" class="form-input" id="modalTaskLocation" placeholder="المنزل، العمل..."></div>
+<div class="form-group"><label class="form-label">مستوى الطاقة:</label>
+<select class="form-select" id="modalTaskEnergy">
+<option value="high">طاقة عالية 🚀</option>
+<option value="medium" selected>طاقة متوسطة ☕</option>
+<option value="low">طاقة منخفضة 🌙</option>
+</select>
+</div>
+<div class="form-group"><label class="form-label">ربط بهدف (OKR):</label>
+<select class="form-select" id="modalTaskObjective"><option value="">بدون ربط</option></select>
+</div>
+<div class="form-group">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+<label class="form-label" style="margin:0">المهام الفرعية:</label>
+<button class="dialog-btn primary" style="font-size:0.75rem;padding:4px 10px" onclick="aiBreakdownTask(event)">✨ تفكيك AI</button>
+</div>
+<textarea class="form-textarea" id="modalSubtasksInput" placeholder="مهمة فرعية 1&#10;مهمة فرعية 2"></textarea>
+</div>
+<div class="form-group"><label class="form-label">الأولوية:</label>
+<select class="form-select" id="modalTaskPriority">
+<option value="low">منخفضة 🟢</option>
+<option value="medium" selected>متوسطة 🟡</option>
+<option value="high">عالية 🔴</option>
+</select>
+</div>
+<div class="form-group"><label class="form-label">التكرار:</label>
+<select class="form-select" id="modalTaskRepeat">
+<option value="none">لا يتكرر</option>
+<option value="daily">يومياً</option>
+<option value="weekly">أسبوعياً</option>
+<option value="monthly">شهرياً</option>
+</select>
+</div>
+<div class="form-group"><label class="form-label">الملاحظات:</label><textarea class="form-textarea" id="modalTaskNotes" placeholder="ملاحظات..."></textarea></div>
+<div class="form-group"><label class="form-label">الوسوم (مفصولة بفاصلة):</label><input type="text" class="form-input" id="modalTaskTags" placeholder="عمل, عائلة, صحة"></div>
+</div>
+<button class="save-fab" onclick="saveNewTaskModal()"><span class="material-symbols-outlined">check</span> حفظ</button>
+</div>
+
+<!-- Settings Hub Modal -->
+<div class="full-modal" id="settingsModal">
+<div class="modal-nav">
+<button class="icon-btn" onclick="closeModal('settingsModal')"><span class="material-symbols-outlined">arrow_forward</span></button>
+<span style="font-weight:800;font-size:1.1rem">الإعدادات ⚙️</span>
+<div style="width:40px"></div>
+</div>
+<div class="modal-content settings-content">
+<div class="settings-card" onclick="openGeneralSettings()">
+  <div class="settings-icon"><span class="material-symbols-outlined">tune</span></div>
+  <div class="settings-text"><div class="settings-title">عام</div><div class="settings-desc">اللغة، قيم البداية</div></div>
+  <span class="material-symbols-outlined settings-arrow">chevron_left</span>
+</div>
+<div class="settings-card" onclick="openSoundSettings()">
+  <div class="settings-icon"><span class="material-symbols-outlined">notifications</span></div>
+  <div class="settings-text"><div class="settings-title">التنبيهات والأصوات</div><div class="settings-desc">شريط الحالة، النغمات، الاهتزاز</div></div>
+  <span class="material-symbols-outlined settings-arrow">chevron_left</span>
+</div>
+<div class="settings-card" onclick="openDefaultValuesSettings()">
+  <div class="settings-icon"><span class="material-symbols-outlined">schedule</span></div>
+  <div class="settings-text"><div class="settings-title">القيم الافتراضية</div><div class="settings-desc">تنبيه مسبق، غفوة</div></div>
+  <span class="material-symbols-outlined settings-arrow">chevron_left</span>
+</div>
+<div class="settings-card" onclick="openQuickTaskSettings()">
+  <div class="settings-icon"><span class="material-symbols-outlined">check_circle</span></div>
+  <div class="settings-text"><div class="settings-title">مهمة سريعة</div><div class="settings-desc">شريط المهمة السريعة، وقت المهمة</div></div>
+  <span class="material-symbols-outlined settings-arrow">chevron_left</span>
+</div>
+<div class="settings-card" onclick="openGoogleSyncModal()">
+  <div class="settings-icon"><span class="material-symbols-outlined">sync</span></div>
+  <div class="settings-text"><div class="settings-title">المزامنة والنسخ الاحتياطي</div><div class="settings-desc">تصدير، استيراد، مزامنة</div></div>
+  <span class="material-symbols-outlined settings-arrow">chevron_left</span>
+</div>
+<div class="settings-card" onclick="openAppearanceSettings()">
+  <div class="settings-icon"><span class="material-symbols-outlined">palette</span></div>
+  <div class="settings-text"><div class="settings-title">المظهر والثيمات</div><div class="settings-desc">الوضع الداكن، الخلفيات</div></div>
+  <span class="material-symbols-outlined settings-arrow">chevron_left</span>
+</div>
+<div class="settings-card" onclick="openStatsModal()">
+  <div class="settings-icon"><span class="material-symbols-outlined">bar_chart</span></div>
+  <div class="settings-text"><div class="settings-title">الإحصائيات</div><div class="settings-desc">تحليل الإنتاجية</div></div>
+  <span class="material-symbols-outlined settings-arrow">chevron_left</span>
+</div>
+<div class="settings-card" onclick="showToast('SmPlan v4.0 - صُنع بـ ❤️')">
+  <div class="settings-icon"><span class="material-symbols-outlined">info</span></div>
+  <div class="settings-text"><div class="settings-title">عن التطبيق</div><div class="settings-desc">إرسال آراء وملاحظات</div></div>
+  <span class="material-symbols-outlined settings-arrow">chevron_left</span>
+</div>
+<div class="settings-card" onclick="showToast('كل بياناتك محفوظة على جهازك فقط.')">
+  <div class="settings-icon"><span class="material-symbols-outlined">privacy_tip</span></div>
+  <div class="settings-text"><div class="settings-title">سياسة الخصوصية</div></div>
+  <span class="material-symbols-outlined settings-arrow">chevron_left</span>
+</div>
+<div style="text-align:center;color:var(--text-secondary);font-size:0.8rem;margin-top:30px;margin-bottom:20px">SmPlan v4.0</div>
+</div>
+</div>
+
+<!-- Sub-Settings Modals -->
+<div class="full-modal" id="generalSettingsModal">
+<div class="modal-nav"><button class="icon-btn" onclick="closeModal('generalSettingsModal')"><span class="material-symbols-outlined">arrow_forward</span></button><span style="font-weight:800;font-size:1.1rem">عام</span><div style="width:40px"></div></div>
+<div class="modal-content">
+<div class="form-group"><label class="form-label">🌍 اللغة:</label><select class="form-select" id="languageSelect"><option value="ar" selected>العربية</option><option value="en">English</option></select></div>
+<div class="form-group"><label class="form-label">📅 صيغة الوقت:</label><select class="form-select" id="timeFormatSelect"><option value="12">12 ساعة</option><option value="24">24 ساعة</option></select></div>
+<div class="form-group"><label class="form-label">📆 بداية الأسبوع:</label><select class="form-select" id="weekStartSelect"><option value="sat" selected>السبت</option><option value="sun">الأحد</option><option value="mon">الإثنين</option></select></div>
+<div class="form-group"><label class="form-label">🔊 الصوت:</label><div class="setting-item" style="cursor:default"><span>استخدام مُركّب الكلام للنظام</span><label class="switch"><input type="checkbox" id="systemVoiceToggle" checked><span class="slider"></span></label></div></div>
+</div>
+</div>
+
+<div class="full-modal" id="defaultValuesModal">
+<div class="modal-nav"><button class="icon-btn" onclick="closeModal('defaultValuesModal')"><span class="material-symbols-outlined">arrow_forward</span></button><span style="font-weight:800;font-size:1.1rem">القيم الافتراضية</span><div style="width:40px"></div></div>
+<div class="modal-content">
+<div class="form-group"><label class="form-label">⏰ التنبيه المسبق (دقائق):</label><input type="number" class="form-input" id="defaultReminderInput" value="10"></div>
+<div class="form-group"><label class="form-label">😴 مدة الغفوة (دقائق):</label><input type="number" class="form-input" id="defaultSnoozeInput" value="5"></div>
+</div>
+</div>
+
+<div class="full-modal" id="quickTaskSettingsModal">
+<div class="modal-nav"><button class="icon-btn" onclick="closeModal('quickTaskSettingsModal')"><span class="material-symbols-outlined">arrow_forward</span></button><span style="font-weight:800;font-size:1.1rem">مهمة سريعة</span><div style="width:40px"></div></div>
+<div class="modal-content">
+<div class="form-group"><div class="setting-item" style="cursor:default"><span>تمكين شريط مهمة سريعة</span><label class="switch"><input type="checkbox" id="quickTaskBarToggle" checked><span class="slider"></span></label></div></div>
+<div class="form-group"><label class="form-label">⏱️ الوقت الافتراضي:</label><select class="form-select" id="quickTaskTimeSelect"><option value="none" selected>بدون وقت</option><option value="morning">صباحاً (9 ص)</option><option value="evening">مساءً (6 م)</option></select></div>
+<div class="form-group"><div class="setting-item" style="cursor:default"><span>تثبيت المهمة السريعة</span><label class="switch"><input type="checkbox" id="quickTaskPinToggle"><span class="slider"></span></label></div></div>
+</div>
+</div>
+
+<div class="full-modal" id="appearanceModal">
+<div class="modal-nav"><button class="icon-btn" onclick="closeModal('appearanceModal')"><span class="material-symbols-outlined">arrow_forward</span></button><span style="font-weight:800;font-size:1.1rem">المظهر</span><div style="width:40px"></div></div>
+<div class="modal-content">
+<div class="form-group"><label class="form-label">🌓 الوضع:</label><div class="setting-item" style="cursor:default"><span>الوضع الداكن</span><label class="switch"><input type="checkbox" id="darkModeToggle" checked onchange="toggleTheme()"><span class="slider"></span></label></div></div>
+<div class="form-group"><label class="form-label">🖼️ الخلفية:</label><button class="form-input" style="background:var(--surface-card);cursor:pointer" onclick="closeModal('appearanceModal'); openWallpapersModal();">تغيير الخلفية</button></div>
+</div>
+</div>
+
+<!-- Sound Settings Modal -->
+<div class="full-modal" id="soundSettingsModal">
+<div class="modal-nav"><button class="icon-btn" onclick="closeModal('soundSettingsModal')"><span class="material-symbols-outlined">arrow_forward</span></button><span style="font-weight:800;font-size:1.1rem">🔔 التنبيهات والأصوات</span><div style="width:40px"></div></div>
+<div class="modal-content">
+<div class="form-group">
+<label class="form-label">🔊 نغمة التنبيه:</label>
+<select id="alertToneSelect" class="form-select" onchange="previewAlertTone(this.value)">
+<option value="chime">🔔 جرس هادئ</option>
+<option value="bell">🛎️ جرس كلاسيكي</option>
+<option value="digital">📱 رقمي</option>
+<option value="success">✅ نجاح</option>
+<option value="urgent">⚠️ عاجل</option>
+<option value="nature">🌿 طبيعة</option>
+<option value="retro">🎮 ريترو</option>
+<option value="none">🔇 بدون صوت</option>
+</select>
+</div>
+<div class="form-group"><label class="form-label">🔉 مستوى الصوت:</label><input type="range" id="alertVolumeRange" min="0" max="100" value="70" oninput="updateAlertVolume(this.value)" style="width:100%"><div style="text-align:center;color:var(--text-secondary);font-size:0.85rem;margin-top:4px" id="volumeLabel">70%</div></div>
+<div class="form-group"><label class="form-label">📳 الاهتزاز:</label><div class="setting-item" style="cursor:default"><span>اهتزاز عند الإنجاز</span><label class="switch"><input type="checkbox" id="vibrationToggle" checked onchange="saveVibrationSetting(this.checked)"><span class="slider"></span></label></div></div>
+<div class="form-group">
+<label class="form-label">🎯 متى تسمع التنبيه:</label>
+<div class="setting-list">
+<label class="setting-item"><input type="checkbox" id="alertOnComplete" checked onchange="saveAlertSetting('complete', this.checked)"><span>عند إنجاز مهمة</span></label>
+<label class="setting-item"><input type="checkbox" id="alertOnPomoEnd" checked onchange="saveAlertSetting('pomo', this.checked)"><span>عند انتهاء Pomodoro</span></label>
+<label class="setting-item"><input type="checkbox" id="alertOnHabit" checked onchange="saveAlertSetting('habit', this.checked)"><span>عند إنجاز عادة</span></label>
+<label class="setting-item"><input type="checkbox" id="alertOnReminder" checked onchange="saveAlertSetting('reminder', this.checked)"><span>تذكير بموعد مهمة</span></label>
+</div>
+</div>
+<button class="form-input" style="background:var(--primary-gradient);color:#000;font-weight:bold;border:none;cursor:pointer" onclick="testAlertTone()">🔔 اختبار النغمة</button>
+</div>
+</div>
+
+<!-- Pomodoro / Focus Modal -->
+<div class="full-modal" id="pomodoroModal">
+<div class="modal-nav">
+<button class="icon-btn" onclick="closeModal('pomodoroModal')"><span class="material-symbols-outlined">arrow_forward</span></button>
+<span style="font-weight:800;font-size:1.1rem">وضع التركيز ⏱️</span>
+<button class="icon-btn" onclick="startFocusMode()"><span class="material-symbols-outlined">fullscreen</span></button>
+</div>
+<div class="modal-content" style="text-align:center">
+<div style="background:var(--surface-card);padding:16px;border-radius:var(--radius-md);border:1px solid var(--border-color);margin-bottom:16px">
+<label class="form-label" style="margin-bottom:10px">⏰ اختار وقتك بنفسك:</label>
+<div style="display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap">
+<input type="number" id="customFocusMin" placeholder="دقائق" min="1" max="180" class="form-input" style="width:80px;text-align:center;font-size:1.1rem;font-weight:bold;padding:8px">
+<span style="color:var(--text-secondary);font-size:1.2rem">:</span>
+<input type="number" id="customFocusSec" placeholder="ثواني" min="0" max="59" class="form-input" style="width:80px;text-align:center;font-size:1.1rem;font-weight:bold;padding:8px">
+<button class="dialog-btn primary" onclick="setCustomFocus()">تطبيق</button>
+</div>
+</div>
+<div class="pomo-btn-group">
+<button class="pomo-preset-btn active" onclick="setPomodoroTime(25,this)">25 د</button>
+<button class="pomo-preset-btn" onclick="setPomodoroTime(15,this)">15 د</button>
+<button class="pomo-preset-btn" onclick="setPomodoroTime(5,this)">5 د راحة</button>
+<button class="pomo-preset-btn" onclick="setPomodoroTime(50,this)">50 د</button>
+<button class="pomo-preset-btn" onclick="setPomodoroTime(90,this)">90 د</button>
+</div>
+<div class="pomo-display" id="pomoTime">25:00</div>
+<div style="background:var(--surface-card);padding:12px;border-radius:var(--radius-md);border:1px solid var(--border-color);margin-bottom:16px">
+<label class="form-label" style="margin-bottom:6px">🎯 ربط بمهمة (اختياري):</label>
+<select id="pomoTaskSelect" class="form-select" style="width:100%"><option value="">بدون ربط</option></select>
+</div>
+<div class="pomo-btn-group">
+<button class="form-input" style="width:auto;background:var(--primary-gradient);color:#000;font-weight:bold;cursor:pointer;padding:12px 24px" id="pomoToggleBtn" onclick="togglePomodoro()">إبدأ ⏱️</button>
+<button class="form-input" style="width:auto;background:var(--surface-card);color:var(--text-color);cursor:pointer;padding:12px 20px" onclick="resetPomodoro()">إعادة ضبط</button>
+</div>
+</div>
+</div>
+
+<!-- AI Input Modal -->
+<div class="full-modal" id="aiInputModal">
+<div class="modal-nav">
+<button class="icon-btn" onclick="closeModal('aiInputModal')"><span class="material-symbols-outlined">arrow_forward</span></button>
+<span style="font-weight:800;font-size:1.1rem">🤖 الإدخال الذكي</span>
+<div style="width:40px"></div>
+</div>
+<div class="modal-content">
+<div style="display:flex;gap:8px;margin-bottom:16px">
+<button class="ai-tab active" onclick="switchAITab('text',this)">📝 نص</button>
+<button class="ai-tab" onclick="switchAITab('voice',this)">🎤 صوت</button>
+<button class="ai-tab" onclick="switchAITab('image',this)">📷 صورة</button>
+</div>
+<div id="aiTabText" class="ai-tab-content">
+<div class="form-group"><label class="form-label">اكتب طبيعي — AI هيفهمك:</label><textarea class="form-textarea" id="aiTextInput" placeholder="مثال:&#10;• ذكرني أشتري دوا من الصيدلية بكرة الساعة 5&#10;• مهمة عاجلة جداً: أخلص التقرير النهاردة&#10;• اجتماع مع الفريق الاثنين القادم 10 صباحاً" style="min-height:120px"></textarea></div>
+<button class="form-input" style="background:var(--primary-gradient);color:#000;font-weight:bold;border:none;cursor:pointer" onclick="processAIText()">✨ حلل وأضف</button>
+</div>
+<div id="aiTabVoice" class="ai-tab-content" style="display:none">
+<div style="text-align:center;padding:30px 0">
+<div class="voice-orb" id="voiceOrb"><span class="material-symbols-outlined" style="font-size:64px;color:var(--primary-color)">mic</span></div>
+<p style="color:var(--text-secondary);margin-top:20px" id="voiceStatus">اضغط للتسجيل</p>
+<p style="color:var(--text-secondary);font-size:0.85rem;margin-top:10px" id="voiceTranscript"></p>
+<button class="form-input" style="background:var(--primary-gradient);color:#000;font-weight:bold;border:none;cursor:pointer;margin-top:20px" id="voiceRecordBtn" onclick="toggleVoiceRecording()">🎤 ابدأ التسجيل</button>
+</div>
+</div>
+<div id="aiTabImage" class="ai-tab-content" style="display:none">
+<div class="form-group"><label class="form-label">📷 صور ورقة/سبورة/شاشة:</label>
+<input type="file" id="aiImageInput" accept="image/*" capture="environment" style="display:none" onchange="processAIImage(event)">
+<button class="form-input" style="background:var(--surface-card);color:var(--text-color);border:2px dashed var(--border-color);cursor:pointer;padding:40px 20px" onclick="document.getElementById('aiImageInput').click()">
+<div style="text-align:center"><span class="material-symbols-outlined" style="font-size:48px;color:var(--primary-color)">add_photo_alternate</span><div style="margin-top:8px;font-weight:bold">اضغط لاختيار صورة</div><div style="font-size:0.8rem;color:var(--text-secondary);margin-top:4px">هيتم استخراج المهام تلقائياً</div></div>
+</button>
+</div>
+<div id="aiImagePreview" style="margin-top:16px"></div>
+</div>
+<div id="aiResultsPreview" style="margin-top:20px"></div>
+</div>
+</div>
+
+<!-- Stats Modal -->
+<div class="full-modal" id="statsModal">
+<div class="modal-nav"><button class="icon-btn" onclick="closeModal('statsModal')"><span class="material-symbols-outlined">arrow_forward</span></button><span style="font-weight:800;font-size:1.1rem">الإحصائيات 📊</span><div style="width:40px"></div></div>
+<div class="modal-content">
+<div class="stats-grid">
+<div class="stat-card"><div class="stat-value" id="statTotalDone">0</div><div class="stat-label">مهام منجزة</div></div>
+<div class="stat-card"><div class="stat-value" id="statStreak" style="color:var(--accent-yellow)">0</div><div class="stat-label">أيام متتالية 🔥</div></div>
+<div class="stat-card"><div class="stat-value" id="statXP" style="color:var(--accent-green)">0</div><div class="stat-label">إجمالي XP</div></div>
+<div class="stat-card"><div class="stat-value" id="statLevel">1</div><div class="stat-label">المستوى</div></div>
+</div>
+<div style="background:var(--surface-card);padding:16px;border-radius:var(--radius-md);border:1px solid var(--border-color);margin-bottom:16px"><label class="form-label" style="margin-bottom:10px">آخر 7 أيام</label><canvas id="weeklyChart" height="200"></canvas></div>
+<div style="background:var(--surface-card);padding:16px;border-radius:var(--radius-md);border:1px solid var(--border-color)"><label class="form-label" style="margin-bottom:10px">آخر 30 يوم</label><div id="heatmapContainer" class="heatmap-grid"></div></div>
+</div>
+</div>
+
+<!-- OKR Modal -->
+<div class="full-modal" id="okrModal">
+<div class="modal-nav"><button class="icon-btn" onclick="closeModal('okrModal')"><span class="material-symbols-outlined">arrow_forward</span></button><span style="font-weight:800;font-size:1.1rem">الأهداف (OKR) 🎯</span><button class="icon-btn" onclick="openNewObjectiveDialog()"><span class="material-symbols-outlined" style="color:var(--primary-color)">add</span></button></div>
+<div class="modal-content"><div id="okrListContainer"></div></div>
+</div>
+
+<!-- Leaderboard Modal -->
+<div class="full-modal" id="leaderboardModal">
+<div class="modal-nav"><button class="icon-btn" onclick="closeModal('leaderboardModal')"><span class="material-symbols-outlined">arrow_forward</span></button><span style="font-weight:800;font-size:1.1rem">المتصدرون 🏆</span><button class="icon-btn" onclick="openNewScoreDialog()"><span class="material-symbols-outlined" style="color:var(--primary-color)">add</span></button></div>
+<div class="modal-content">
+<div style="background:var(--surface-card);padding:16px;border-radius:var(--radius-md);border:1px solid var(--border-color);margin-bottom:16px;text-align:center">
+<div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:6px">نقاطك</div>
+<div style="font-size:2.5rem;font-weight:800;color:var(--primary-color)" id="myXPDisplay">0 XP</div>
+<div style="font-size:0.8rem;color:var(--text-secondary)" id="myLevelDisplay">المستوى 1</div>
+</div>
+<div id="leaderboardContainer"></div>
+</div>
+</div>
+
+<!-- Wallpapers Modal -->
+<div class="full-modal" id="wallpapersModal">
+<div class="modal-nav"><button class="icon-btn" onclick="closeModal('wallpapersModal')"><span class="material-symbols-outlined">arrow_forward</span></button><span style="font-weight:800;font-size:1.1rem">الخلفيات والثيمات</span><div style="width:40px"></div></div>
+<div class="modal-content">
+<div style="margin-bottom:14px"><label class="form-label">درجة التعتيم:</label><input type="range" id="bgOpacityRange" min="30" max="95" value="85" oninput="changeBgDimming(this.value)" style="width:100%"></div>
+<div class="form-group" style="background:var(--surface-card);padding:12px;border-radius:var(--radius-md);border:1px solid var(--border-color);text-align:center">
+<label class="form-label" style="margin-bottom:6px">صورة من الجهاز 📱:</label>
+<input type="file" id="deviceImagePicker" accept="image/*" style="display:none" onchange="handleDeviceImageSelect(event)">
+<button class="form-input" style="background:var(--primary-gradient);color:#000;font-weight:bold;border:none;cursor:pointer" onclick="document.getElementById('deviceImagePicker').click()">📁 اختيار صورة</button>
+</div>
+<div class="form-group"><label class="form-label">أو من رابط:</label><div style="display:flex;gap:8px"><input type="text" class="form-input" id="customBgUrlInput" placeholder="https://..."><button class="dialog-btn primary" onclick="applyCustomWallpaper()">تطبيق</button></div></div>
+<label class="form-label" style="margin-top:10px">خلفيات جاهزة:</label>
+<div class="wallpaper-grid">
+<div class="wallpaper-item" style="background-image:url('https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=400&q=80')" onclick="setWallpaper('https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=800&q=80')"><span>Scenic 🌺</span></div>
+<div class="wallpaper-item" style="background-image:url('https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=400&q=80')" onclick="setWallpaper('https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=800&q=80')"><span>Pop Art 🎨</span></div>
+<div class="wallpaper-item" style="background-image:url('https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=400&q=80')" onclick="setWallpaper('https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80')"><span>Mountains 🏔️</span></div>
+<div class="wallpaper-item" style="background-image:url('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=400&q=80')" onclick="setWallpaper('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=800&q=80')"><span>Neon 💡</span></div>
+<div class="wallpaper-item" style="background:#171a21;display:flex;align-items:center;justify-content:center;grid-column:span 2" onclick="setWallpaper('')"><span>بدون خلفية</span></div>
+</div>
+</div>
+</div>
+
+<!-- Soundscapes Modal -->
+<div class="full-modal" id="soundscapesModal">
+<div class="modal-nav"><button class="icon-btn" onclick="closeModal('soundscapesModal')"><span class="material-symbols-outlined">arrow_forward</span></button><span style="font-weight:800;font-size:1.1rem">أصوات التركيز 🎧</span><div style="width:40px"></div></div>
+<div class="modal-content">
+<p style="color:var(--text-secondary);font-size:0.85rem;text-align:center;margin-bottom:12px">اختر صوتاً للتركيز:</p>
+<div class="soundscape-grid">
+<div class="soundscape-card" id="soundRain" onclick="toggleSoundscape('rain')"><span class="material-symbols-outlined soundscape-icon">water_drop</span><span style="font-weight:bold">مطر 🌧️</span></div>
+<div class="soundscape-card" id="soundWaves" onclick="toggleSoundscape('waves')"><span class="material-symbols-outlined soundscape-icon">waves</span><span style="font-weight:bold">أمواج 🌊</span></div>
+<div class="soundscape-card" id="soundCafe" onclick="toggleSoundscape('cafe')"><span class="material-symbols-outlined soundscape-icon">local_cafe</span><span style="font-weight:bold">كافيه ☕</span></div>
+<div class="soundscape-card" id="soundWhite" onclick="toggleSoundscape('white')"><span class="material-symbols-outlined soundscape-icon">graphic_eq</span><span style="font-weight:bold">ضوضاء 📻</span></div>
+</div>
+<div style="margin-top:24px;text-align:center"><button class="form-input" style="background:var(--accent-pink-bg);color:var(--accent-pink);font-weight:bold;cursor:pointer" onclick="stopAllSoundscapes()">إيقاف الكل ⏹️</button></div>
+</div>
+</div>
+
+<!-- Habits Modal -->
+<div class="full-modal" id="habitModal">
+<div class="modal-nav"><button class="icon-btn" onclick="closeModal('habitModal')"><span class="material-symbols-outlined">arrow_forward</span></button><span style="font-weight:800;font-size:1.1rem">العادات اليومية</span><div style="width:40px"></div></div>
+<div class="modal-content">
+<div class="form-group"><label class="form-label">عادة جديدة:</label><div style="display:flex;gap:8px"><input type="text" class="form-input" id="newHabitInput" placeholder="مثال: قراءة 20 صفحة..."><button class="dialog-btn primary" onclick="addHabit()">إضافة</button></div></div>
+<div id="habitListContainer" style="display:flex;flex-direction:column;gap:10px;margin-top:16px"></div>
+</div>
+</div>
+
+<!-- Journal Modal -->
+<div class="full-modal" id="weeklyJournalModal">
+<div class="modal-nav"><button class="icon-btn" onclick="closeModal('weeklyJournalModal')"><span class="material-symbols-outlined">arrow_forward</span></button><span style="font-weight:800;font-size:1.1rem">مفكرة التأمل 📖</span><div style="width:40px"></div></div>
+<div class="modal-content">
+<div style="background:var(--surface-card);padding:16px;border-radius:var(--radius-md);border:1px solid var(--border-color);margin-bottom:18px">
+<h3 style="color:var(--primary-color);margin-bottom:6px;font-size:1rem">📊 ملخصك</h3>
+<p style="color:var(--text-secondary);font-size:0.88rem" id="journalStatsText">جاري التحميل...</p>
+</div>
+<div class="form-group"><label class="form-label">تأملاتك:</label><textarea class="form-textarea" id="journalNotesInput" placeholder="اكتب..." style="min-height:120px"></textarea></div>
+<button class="form-input" style="background:var(--primary-gradient);color:#000;font-weight:bold;border:none;cursor:pointer" onclick="saveWeeklyJournal()">حفظ 💾</button>
+</div>
+</div>
+
+<!-- Multi Add Modal -->
+<div class="full-modal" id="multiAddModal">
+<div class="modal-nav"><button class="icon-btn" onclick="closeModal('multiAddModal')"><span class="material-symbols-outlined">arrow_forward</span></button><span style="font-weight:800;font-size:1.1rem">إضافة متعددة</span><button class="icon-btn" onclick="saveMultiTasks()"><span class="material-symbols-outlined" style="color:var(--primary-color)">check</span></button></div>
+<div class="modal-content"><div class="form-group"><label class="form-label">كل سطر = مهمة:</label><textarea class="form-textarea" id="multiTasksInput" style="height:260px" placeholder="مهمة 1&#10;مهمة 2"></textarea></div></div>
+<button class="save-fab" onclick="saveMultiTasks()"><span class="material-symbols-outlined">check</span> حفظ الكل</button>
+</div>
+
+<!-- Backup Modal -->
+<div class="full-modal" id="googleSyncModal">
+<div class="modal-nav"><button class="icon-btn" onclick="closeModal('googleSyncModal')"><span class="material-symbols-outlined">arrow_forward</span></button><span style="font-weight:800;font-size:1.1rem">النسخ الاحتياطي</span><div style="width:40px"></div></div>
+<div class="modal-content" style="text-align:center;padding-top:20px">
+<span class="material-symbols-outlined" style="font-size:60px;color:var(--primary-color)">cloud_sync</span>
+<h3 style="margin:8px 0">حفظ واسترجاع سحابي</h3>
+<p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:16px">ربط بياناتك بحسابك:</p>
+<div class="form-group" style="text-align:right"><label class="form-label">بريد Gmail:</label><input type="email" class="form-input" id="userEmailInput" placeholder="example@gmail.com"></div>
+<button class="form-input" style="background:var(--primary-gradient);color:#000;font-weight:bold;border:none;cursor:pointer;margin-bottom:12px" onclick="syncWithGmailAccount()">☁️ حفظ نسخة</button>
+<input type="file" id="gmailBackupRestoreFile" accept=".json" style="display:none" onchange="restoreFromGmailFile(event)">
+<button class="form-input" style="background:var(--surface-card);color:var(--text-color);cursor:pointer;border:1px solid var(--border-color)" onclick="document.getElementById('gmailBackupRestoreFile').click()">🔄 استرجاع نسخة</button>
+</div>
+</div>
+
+<!-- Dialogs -->
+<div class="custom-dialog-overlay" id="categoryDialogOverlay">
+<div class="custom-dialog-card">
+<div class="dialog-title">إضافة قائمة جديدة</div>
+<input type="text" class="form-input" id="newCategoryInput" placeholder="اسم القائمة..." style="margin-top:6px">
+<div class="dialog-btn-row"><button class="dialog-btn" onclick="closeNewCategoryDialog()">إلغاء</button><button class="dialog-btn primary" onclick="submitNewCategory()">إضافة</button></div>
+</div>
+</div>
+
+<div class="custom-dialog-overlay" id="confirmDialogOverlay">
+<div class="custom-dialog-card">
+<div class="dialog-title" id="confirmDialogTitle">تأكيد</div>
+<p id="confirmDialogMessage" style="color:var(--text-secondary);font-size:0.9rem"></p>
+<div class="dialog-btn-row"><button class="dialog-btn" onclick="closeConfirmDialog(false)">إلغاء</button><button class="dialog-btn primary" onclick="closeConfirmDialog(true)">تأكيد</button></div>
+</div>
+</div>
+
+<!-- Focus Overlay -->
+<div class="focus-overlay" id="focusOverlay">
+  <div class="focus-particles" id="focusParticles"></div>
+  <div class="focus-content">
+    <div class="focus-task-label" id="focusTaskLabel">وضع التركيز</div>
+    <div class="focus-progress-ring">
+      <svg width="280" height="280">
+        <circle cx="140" cy="140" r="130" stroke="rgba(138,180,248,0.1)" stroke-width="6" fill="none"/>
+        <circle cx="140" cy="140" r="130" stroke="url(#grad)" stroke-width="6" fill="none" stroke-dasharray="816.8" stroke-dashoffset="0" id="focusProgressCircle" transform="rotate(-90 140 140)"/>
+        <defs><linearGradient id="grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8ab4f8"/><stop offset="1" stop-color="#c084fc"/></linearGradient></defs>
+      </svg>
+      <div class="focus-timer" id="focusTimer">25:00</div>
+    </div>
+    <div class="focus-controls">
+      <button class="focus-btn" onclick="togglePomodoro()" id="focusToggleBtn"><span class="material-symbols-outlined">pause</span></button>
+      <button class="focus-btn secondary" onclick="resetPomodoro()"><span class="material-symbols-outlined">refresh</span></button>
+      <button class="focus-btn danger" onclick="exitFocusMode()"><span class="material-symbols-outlined">close</span></button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
